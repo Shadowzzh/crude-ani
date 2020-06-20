@@ -1,7 +1,7 @@
 (function (factory) {
 
     //  如果在node环境
-    if (typeof exports !== "undefined") {
+    if (typeof exports != undefined) {
         factory(exports)
         return
     }
@@ -42,7 +42,7 @@
          * 例如 WebkitTransform 转 -webkit-transform
          */
         beHyphenize(str) {
-            return str.replace(/([A-Z])g/, "-$1").toLowerCase()
+            return str.replace(/([A-Z])/g, "-$1").toLowerCase();
         },
         /**
          * 首字母大写
@@ -89,11 +89,12 @@
             return str
         }
         //  动画帧对象
-        const requestAniFrame = window.requestAnimationFrame ||
-            window.webkitRequestAnimationFrame ||
-            window.mozRequestAnimationFrame ||
-            window.oRequestAnimationFrame ||
-            window.msRequestAnimationFrame
+        const requestAniFrame =
+            window.requestAnimationFrame.bind(window) ||
+            window.webkitRequestAnimationFrame.bind(window) ||
+            window.mozRequestAnimationFrame.bind(window) ||
+            window.oRequestAnimationFrame.bind(window) ||
+            window.msRequestAnimationFrame.bind(window)
         return {
             EVENT,
             addBrowserPrefix,
@@ -149,11 +150,11 @@
                 case "zoom":
                     return val
                 default:
-                    return typeof (val) === "number" ? `${Math.round(value)}px` : val
+                    return typeof (val) === "number" ? `${Math.round(val)}px` : val
             }
         },
         /**
-         * 获取 $node 的 style name的名称
+         * 获取 $node 的 style name的值
          * @param {string} name dom对象的 style 名称
          */
         getStyle($node, name) {
@@ -201,7 +202,7 @@
 
         return {
             create() {
-                return ++reuleId
+                return ++ruleId
             },
             /**
              * 给 caSheet添加 caRule规则
@@ -254,7 +255,7 @@
              * @param {object} to 动画结束的css规则
              */
             addKfRule(name, from, to) {
-                name = `${ca_kf_}${name}`
+                name = `ca_kf_${name}`
                 let fromText = "0%{"
                 let toText = "100%{"
 
@@ -267,7 +268,7 @@
                 toText += "}"
 
                 cssRule.add(
-                    `@${tools.beHyphenize(browser.addBrowserPrefix("KeyFrames"))} ${name}`,
+                    `@${tools.beHyphenize(browser.addBrowserPrefix("Keyframes"))} ${name}`,
                     fromText + toText
                 )
                 return name
@@ -288,13 +289,13 @@
         tools.extend(CrudeAni.prototype, {
             init($node, time, from, to) {
                 this.from = from
+                this.to = to
                 this.$node = $node
                 this.duration = Math.max(time, 0) // 动画时间 最小不小于0
                 this.ease = `cubic-bezier${to.ease || CA.Linear.None}` // animation 的 timing-function默认为 ease
                 this.delay = Math.max(to.delay || 0, 0) // 延迟一段时间后执行动画
 
                 this.ring = to.ring || false
-                this.isInfinite = to.isInfinite || false
                 this.repeat = Math.floor(to.repeat || 1) // 重复次数
                 this.onStart = to.onStart
                 this.onRepeat = to.onRepeat
@@ -304,7 +305,7 @@
 
                 let caid = createCrudeAni()
                 if (this.$node._ca_id_) {
-                    crudeAnis[this.$node._ca_id_].distroy()
+                    crudeAnis[this.$node._ca_id_].destroy()
                 }
                 this.$node._ca_id_ = caid
 
@@ -322,7 +323,6 @@
                     node.setStyle(this.$node, to)
                 } else {
                     this.$node.addEventListener(browser.EVENT.TRANS_END, this.onEnd, false)
-
                     browser.requestAniFrame(() => {
                         browser.requestAniFrame(() => {
                             this.$node.style[browser.addBrowserPrefix("Transition")] = `all ${this.duration}s ${this.ease} ${this.delay}s`
@@ -333,7 +333,10 @@
 
                 crudeAnis[caid] = this
             },
-            destory(end) {
+            /**
+             * 删除动画
+             */
+            destroy(end) {
                 if (!end) {
                     for (const key of Object.keys(this.to)) {
                         if (this.$node.style[key] != undefined) {
@@ -346,13 +349,12 @@
                     this.$node.removeEventListener(browser.EVENT.ANI_REPEAT, this.onRepeat, false)
                     this.$node.removeEventListener(browser.EVENT.ANI_END, this.onEnd, false)
 
-                    this.target.style[browserPrefix('Animation')] = "";
-                    this.target.style[browserPrefix('AnimationFillMode')] = "";
-
-                    removeRule(this.kfName);
+                    this.$node.style[browser.addBrowserPrefix('Animation')] = "";
+                    this.$node.style[browser.addBrowserPrefix('AnimationFillMode')] = "";
+                    cssRule.remove(this.kfName);
                 } else {
                     this.$node.removeEventListener(browser.EVENT.TRANS_END, this.onEnd, false)
-                    this.$node.style[browserPrefix("Transition")] = ""
+                    this.$node.style[browser.addBrowserPrefix("Transition")] = ""
                 }
 
                 delete crudeAnis[this.$node._ca_id_]
@@ -368,19 +370,88 @@
         tools.extend(CA, {
             to(query, time, to) {
                 const $nodeList = $(query)
-                const crudeAnis = []
-                
-                tools.each($nodeList, (index, $node) => {
-                    const from = {}
-                    const to = {}
+                const _crudeAnis = []
+
+                tools.each($nodeList, handleNode)
+                function handleNode(index, $node) {
+                    const _from = {}
+                    const _to = {}
 
                     for (const cssName of Object.keys(to)) {
-                        const _name = node.hasCssName($node, cssName)
+                        //  css + broswer 前缀
+                        const prefixCName = node.hasCssName($node, cssName)
+                        if (prefixCName) {
+                            //  当前 node css 值
+                            const styleVal = node.getStyle($node, prefixCName)
+                            _from[prefixCName] = styleVal
+                            //  当前 node css + to.css 的值
+                            _to[prefixCName] = node.cumsum(styleVal, to[cssName])
+                        } else {
+                            _to[cssName] = to[cssName]
+                        }
                     }
-                })
+                    const _crudeAni = new CrudeAni($node, time, _from, _to)
+                    _crudeAnis.push(_crudeAni)
+                }
+
+                if (_crudeAnis.length === 1) {
+                    return _crudeAnis[0]
+                } else {
+                    return _crudeAnis
+                }
             }
         })
-    }
-
+        tools.extend(CA, {
+            Linear: {
+                None: '(0, 0, 1, 1)'
+            },
+            Quad: {
+                In: '(0.3, 0, 0.65, 0.75)',
+                Out: '(0.35, 0.25, 0.7, 1)',
+                InOut: '(0.46, 0.03, 0.54, 0.97)'
+            },
+            Cubic: {
+                in: '(0.550, 0.055, 0.675, 0.190)',
+                Out: '(0.215, 0.610, 0.355, 1.000)',
+                InOut: '(0.645, 0.045, 0.355, 1.000)',
+            },
+            Quart: {
+                In: '(0.5, 0, 0.75, 0)',
+                Out: '(0.25, 1, 0.5, 1)',
+                InOut: '(0.75, 0, 0.25, 1)'
+            },
+            Quint: {
+                in: '(0.755, 0.050, 0.855, 0.060)',
+                Out: '(0.230, 1.000, 0.320, 1.000)',
+                InOut: '(0.860, 0.000, 0.070, 1.000)',
+            },
+            Sine: {
+                in: '(0.470, 0.000, 0.745, 0.715)',
+                Out: '(0.390, 0.575, 0.565, 1.000)',
+                InOut: '(0.445, 0.050, 0.550, 0.950)',
+            },
+            Expo: {
+                in: '(0.950, 0.050, 0.795, 0.035)',
+                Out: '(0.190, 1.000, 0.220, 1.000)',
+                InOut: '(1.000, 0.000, 0.000, 1.000)',
+            },
+            Circ: {
+                in: '(0.600, 0.040, 0.980, 0.335)',
+                Out: '(0.075, 0.820, 0.165, 1.000)',
+                InOut: '(0.785, 0.135, 0.150, 0.860)',
+            },
+            Back: {
+                In: '(0, 0.35, 0.7, -0.6)',
+                Out: '(0.3, 1.6, 0.65, 1)',
+                InOut: '(0.680, -0.550, 0.265, 1.550)',
+            },
+            Ease: {
+                None: "(0.25, 0.1, 0.25, 1)",
+                In: "(0.42, 0, 1, 1)",
+                Out: "(0, 0, 0.58, 1)",
+                InOut: "(0.42, 0, 0.58, 1)",
+            }
+        });
+    }()
     return CA
 })) 

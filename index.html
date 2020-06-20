@@ -8,13 +8,42 @@
     <script src="src/index.js"></script>
 </head>
 <style>
+    .square {
+        width: 100px;
+        height: 100px;
+        background-color: #3b3b3b;
+    }
 </style>
 
 <script>
-    console.log(CA)
-</script>
-<body>
+    window.addEventListener("load", () => {
+        console.log(CA)
+        console.log(CA.to(".square2", 1, {
+            width: "100%",
+            type: "ani",
+            ease: CA.Cubic.Out,
+            repeat: -1,
+            ring: true,
+            // onEnd() {
+            //     CA.to(".square2", 1, {
+            //         width: 200,
+            //         type: "ani",
+            //         ease: CA.Quart.Out,
+            //     })
+            // }
+        }))
 
+        // CA.to(".square3", 1, {
+        //     width: 400,
+        //     type: "ani",
+        //     ease: CA.Quart.Out,
+        // })
+    })
+</script>
+
+<body>
+    <div class="square square2"></div>
+    <div class="square square3"></div>
 </body>
 
 </html>
